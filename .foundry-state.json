@@ -1,0 +1,12 @@
+{
+  "project_id": null,
+  "workspace": "D:/SHADOW/prior-auth-pro",
+  "modules_completed": [],
+  "current_module": null,
+  "current_module_status": null,
+  "last_session_ended_at": null,
+  "last_git_tag": null,
+  "notes": [
+    "Initialized 2026-04-24. Session 1 will set project_id after first orch.plan() call."
+  ]
+}

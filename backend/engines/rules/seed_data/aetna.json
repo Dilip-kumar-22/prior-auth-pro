@@ -1,0 +1,142 @@
+[
+  {
+    "payer_name": "Aetna",
+    "policy_code": "AET-MED-001",
+    "service_category": "medication",
+    "cpt_codes": [
+      "J0585",
+      "J0586",
+      "J0587"
+    ],
+    "icd10_required": [
+      "G43.709",
+      "G43.719",
+      "G24.3"
+    ],
+    "documentation_required": [
+      "neurology_consult",
+      "headache_diary",
+      "prior_treatments"
+    ],
+    "auto_approve_criteria": {
+      "qualifying_diagnoses": [
+        "G43.709",
+        "G43.719"
+      ],
+      "headache_days_per_month": 15,
+      "prerequisite_drugs_failed": [
+        "topiramate",
+        "propranolol"
+      ]
+    },
+    "auto_deny_criteria": {
+      "excluded_service_codes": [
+        "J0588"
+      ]
+    },
+    "requires_ai_review": true,
+    "effective_date": "2023-01-01",
+    "expiry_date": "2025-12-31"
+  },
+  {
+    "payer_name": "Aetna",
+    "policy_code": "AET-IMG-001",
+    "service_category": "imaging",
+    "cpt_codes": [
+      "72141",
+      "72142",
+      "72148",
+      "72149"
+    ],
+    "icd10_required": [
+      "M54.5",
+      "M54.4",
+      "M54.3"
+    ],
+    "documentation_required": [
+      "clinical_notes",
+      "physical_therapy_notes",
+      "xray_results"
+    ],
+    "auto_approve_criteria": {
+      "qualifying_diagnoses": [
+        "M54.4",
+        "M54.3"
+      ],
+      "conservative_treatment_weeks": 6
+    },
+    "auto_deny_criteria": {
+      "excluded_service_codes": [
+        "72156",
+        "72158"
+      ]
+    },
+    "requires_ai_review": true,
+    "effective_date": "2023-01-01",
+    "expiry_date": "2025-12-31"
+  },
+  {
+    "payer_name": "Aetna",
+    "policy_code": "AET-PROC-001",
+    "service_category": "procedure",
+    "cpt_codes": [
+      "43239",
+      "43235"
+    ],
+    "icd10_required": [
+      "K21.9",
+      "K21.0",
+      "K22.70"
+    ],
+    "documentation_required": [
+      "clinical_notes",
+      "medication_history"
+    ],
+    "auto_approve_criteria": {
+      "qualifying_diagnoses": [
+        "K22.70"
+      ],
+      "ppi_trial_failed": true
+    },
+    "auto_deny_criteria": {
+      "excluded_service_codes": [
+        "43240"
+      ]
+    },
+    "requires_ai_review": false,
+    "effective_date": "2023-01-01",
+    "expiry_date": "2025-12-31"
+  },
+  {
+    "payer_name": "Aetna",
+    "policy_code": "AET-DME-001",
+    "service_category": "dme",
+    "cpt_codes": [
+      "E0482",
+      "E0483"
+    ],
+    "icd10_required": [
+      "G12.21",
+      "G71.0"
+    ],
+    "documentation_required": [
+      "pulmonology_consult",
+      "pft_results"
+    ],
+    "auto_approve_criteria": {
+      "qualifying_diagnoses": [
+        "G12.21",
+        "G71.0"
+      ],
+      "fvc_percent_predicted_less_than": 50
+    },
+    "auto_deny_criteria": {
+      "excluded_service_codes": [
+        "E0484"
+      ]
+    },
+    "requires_ai_review": true,
+    "effective_date": "2023-01-01",
+    "expiry_date": "2025-12-31"
+  }
+]

@@ -1,0 +1,140 @@
+[
+  {
+    "payer_name": "UnitedHealth",
+    "policy_code": "UH-MED-001",
+    "service_category": "medication",
+    "cpt_codes": [
+      "J3380",
+      "J0129",
+      "J1745"
+    ],
+    "icd10_required": [
+      "M05.70",
+      "M06.9",
+      "L40.50"
+    ],
+    "documentation_required": [
+      "clinical_notes",
+      "lab_results",
+      "medication_history"
+    ],
+    "auto_approve_criteria": {
+      "qualifying_diagnoses": [
+        "M05.70",
+        "M06.9",
+        "L40.50"
+      ],
+      "prerequisite_drugs_failed": [
+        "methotrexate",
+        "adalimumab"
+      ]
+    },
+    "auto_deny_criteria": {
+      "excluded_service_codes": [
+        "J3381",
+        "J0130"
+      ]
+    },
+    "requires_ai_review": true,
+    "effective_date": "2023-01-01",
+    "expiry_date": "2025-12-31"
+  },
+  {
+    "payer_name": "UnitedHealth",
+    "policy_code": "UH-IMG-001",
+    "service_category": "imaging",
+    "cpt_codes": [
+      "70551",
+      "70552",
+      "70553"
+    ],
+    "icd10_required": [
+      "G35",
+      "R51",
+      "G43.001"
+    ],
+    "documentation_required": [
+      "clinical_notes",
+      "neurology_consult"
+    ],
+    "auto_approve_criteria": {
+      "qualifying_diagnoses": [
+        "G35"
+      ]
+    },
+    "auto_deny_criteria": {
+      "excluded_service_codes": [
+        "70554",
+        "70555"
+      ]
+    },
+    "requires_ai_review": true,
+    "effective_date": "2023-01-01",
+    "expiry_date": "2025-12-31"
+  },
+  {
+    "payer_name": "UnitedHealth",
+    "policy_code": "UH-PROC-001",
+    "service_category": "procedure",
+    "cpt_codes": [
+      "27447",
+      "27446"
+    ],
+    "icd10_required": [
+      "M17.11",
+      "M17.12",
+      "M17.0"
+    ],
+    "documentation_required": [
+      "clinical_notes",
+      "xray_results",
+      "physical_therapy_notes"
+    ],
+    "auto_approve_criteria": {
+      "qualifying_diagnoses": [
+        "M17.11",
+        "M17.12",
+        "M17.0"
+      ],
+      "conservative_treatment_months": 6
+    },
+    "auto_deny_criteria": {
+      "excluded_service_codes": [
+        "27448"
+      ]
+    },
+    "requires_ai_review": true,
+    "effective_date": "2023-01-01",
+    "expiry_date": "2025-12-31"
+  },
+  {
+    "payer_name": "UnitedHealth",
+    "policy_code": "UH-DME-001",
+    "service_category": "dme",
+    "cpt_codes": [
+      "E0601",
+      "E0470"
+    ],
+    "icd10_required": [
+      "G47.33"
+    ],
+    "documentation_required": [
+      "sleep_study_results",
+      "clinical_notes"
+    ],
+    "auto_approve_criteria": {
+      "qualifying_diagnoses": [
+        "G47.33"
+      ],
+      "ahi_greater_than": 15
+    },
+    "auto_deny_criteria": {
+      "excluded_service_codes": [
+        "E0602"
+      ]
+    },
+    "requires_ai_review": false,
+    "effective_date": "2023-01-01",
+    "expiry_date": "2025-12-31"
+  }
+]
