@@ -4,7 +4,7 @@
 
 **Goal:** Rerun S-CORP Foundry across multiple Claude Code sessions to finish PriorAuth Pro for the Agents Assemble Healthcare Hackathon (submit by 2026-05-11 23:00 EDT).
 
-**Architecture:** BuildOrchestrator (Enterprise mode) builds into `D:/SHADOW/prior-auth-pro/` via `workspace_override`. Six modules, each kicked off with its own brief, Foundry self-drives 12-step pipeline per sprint. Claude polls status, handles 503 fallouts, commits at module boundaries. State persisted in `.foundry-state.json` + `~/.shadow/data/build_orchestrator.db` for cross-session resume.
+**Architecture:** BuildOrchestrator (Enterprise mode) builds in its default `~/.shadow/workspace/proj_<id>/`, pre-populated with the current `prior-auth-pro` state so imports/tests resolve. Six modules, each kicked off with its own brief, Foundry self-drives 12-step pipeline per sprint. Claude polls status, handles 503 fallouts, then at module boundaries syncs generated files back into `D:/SHADOW/prior-auth-pro/backend/`, commits + tags in our own format, pushes. State persisted in `.foundry-state.json` + `~/.shadow/data/build_orchestrator.db` for cross-session resume. *[Revised 2026-04-24: `workspace_override` is not a real BuildOrchestrator config key — sync-at-boundary replaces it.]*
 
 **Tech Stack:** Python 3.11 + FastAPI + SQLAlchemy 2.0 async + Alembic + ARQ + PostgreSQL/pgvector · React 18 + TypeScript + Vite + Tailwind + shadcn/ui · Google ADK + A2A JSON-RPC · Gemini 3.1 Pro (primary) with 2.5 Pro / 3 Flash / 2.5 Flash fallback · Docker Compose · GitHub Actions.
 
@@ -367,9 +367,8 @@ Write: `D:/SHADOW/S-CORP/scripts/foundry_smoke_test.py`
 
 Content:
 ```python
-"""Foundry readiness smoke test — confirms BuildOrchestrator works with workspace_override."""
+"""Foundry readiness smoke test — confirms BuildOrchestrator imports, API key loads, orch.plan() decomposes a trivial request."""
 import asyncio
-import os
 import sys
 from pathlib import Path
 
@@ -385,15 +384,11 @@ async def main():
     orch = BuildOrchestrator()
     project = await orch.plan(
         request="Create a single Python file `hello.py` that prints 'Foundry smoke test OK'.",
-        config={
-            "workspace_override": str(Path.home() / ".shadow" / "workspace" / "foundry_smoke"),
-            "build_model": "gemini/gemini-3.1-pro",
-            "project_name": "foundry-smoke-test",
-        },
+        config={"model": "gemini-2.5-flash"},
     )
     print(f"project_id={project.id}")
-    status = await orch.get_status(project.id)
-    print(f"initial status: {status}")
+    status = orch.get_status(project.id)  # get_status is sync, not async
+    print(f"initial status keys: {list(status.keys())}")
 
 
 if __name__ == "__main__":
@@ -404,13 +399,11 @@ if __name__ == "__main__":
 
 Run: `cd D:/SHADOW/S-CORP && python scripts/foundry_smoke_test.py`
 
-Expected: Output shows `project_id=proj_...` and initial status dict. No import errors, no API key errors.
+Expected: `project_id=proj_<timestamp>` printed, initial status keys shown. No import errors, no API key errors. (A `Direct API call failed: HTTP Error 404` warning is pre-existing/harmless — `_ask_direct` falls through to litellm.)
 
-**Step 3: Clean up test artifacts**
+**Step 3: Clean up smoke test workspaces**
 
-Run: `rm -rf "C:/Users/Dilip Kumar/.shadow/workspace/foundry_smoke"`
-
-Expected: Silent.
+Run: `rm -rf "C:/Users/Dilip Kumar/.shadow/workspace/proj_1777012*"` (adjust glob to your test timestamps)
 
 **Step 4: If smoke test failed**
 
@@ -418,15 +411,72 @@ Expected: Silent.
 - `API key not found` → double-check `.env`. Re-run.
 - Any other error → stop, ask Commander, do NOT proceed to Phase 2.
 
-### Task 16: Commit pre-flight completion
+### Task 16: Create sync_module.py + commit pre-flight completion
 
-**Step 1: Stage changes to `.foundry-state.json` and log (none yet, but will be used later)**
+**Step 1: Write sync_module.py** (used by every Phase 3 cycle)
+
+Write: `D:/SHADOW/S-CORP/scripts/sync_module.py`
+
+Content:
+```python
+"""Sync a completed Foundry module's workspace back into the prior-auth-pro repo.
+
+Reads project_id from .foundry-state.json, computes Foundry's workspace path,
+copies everything (excluding Foundry internals + generated junk) into the repo.
+"""
+import json
+import shutil
+from pathlib import Path
+
+
+REPO = Path("D:/SHADOW/prior-auth-pro")
+STATE_FILE = REPO / ".foundry-state.json"
+WORKSPACE_ROOT = Path.home() / ".shadow" / "workspace"
+
+# Things NOT to copy from Foundry's workspace back into our repo
+SYNC_IGNORES = shutil.ignore_patterns(
+    ".git",                      # Foundry's internal git history
+    "BUILD_JOURNAL.md",          # Foundry's per-build audit log
+    "build_project.json",        # Foundry metadata
+    ".foundry-state.json",       # Don't clobber our state file
+    "node_modules", ".venv", "__pycache__", ".pytest_cache", "*.pyc",
+)
+
+
+def main():
+    state = json.loads(STATE_FILE.read_text())
+    pid = state.get("project_id")
+    if not pid:
+        raise SystemExit("No project_id in state file — run launch_module.py first")
+
+    src = WORKSPACE_ROOT / pid
+    if not src.is_dir():
+        raise SystemExit(f"Workspace not found: {src}")
+
+    # Count files before/after for a simple diff summary
+    before = sum(1 for _ in REPO.rglob("*") if _.is_file() and ".git" not in _.parts)
+    shutil.copytree(src, REPO, dirs_exist_ok=True, ignore=SYNC_IGNORES)
+    after = sum(1 for _ in REPO.rglob("*") if _.is_file() and ".git" not in _.parts)
+
+    print(f"synced {src} -> {REPO}")
+    print(f"files in repo: {before} -> {after} (delta: +{after - before})")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+**Step 2: Clean up smoke test artifacts**
+
+Run: `rm -rf "C:/Users/Dilip Kumar/.shadow/workspace/proj_1777012"*` (adjust glob to actual smoke-test timestamps)
+
+**Step 3: Git status check in repo**
 
 Run: `cd D:/SHADOW/prior-auth-pro && git status`
 
-Expected: Clean tree (nothing should have changed since Task 13; smoke test wrote to `.shadow/`, not into the repo).
+Expected: Clean tree (smoke test wrote to `.shadow/`, not into repo).
 
-**Step 2: Skip commit if nothing to commit.**
+**Step 4: No commit needed in repo for this task** — the sync_module.py script lives in S-CORP, not prior-auth-pro. Pre-flight is complete.
 
 ---
 
@@ -759,15 +809,20 @@ Run: `cd D:/SHADOW/prior-auth-pro && git push`
 
 ### Per-module cycle (6 tasks per module)
 
-**Cycle Task A: Launch module**
+**Cycle Task A: Launch module (plan → pre-populate → start)**
 
 Write: `D:/SHADOW/S-CORP/scripts/launch_module.py` (first time only — reused across modules)
 
 Content:
 ```python
-"""Launch a Foundry module. Usage: python launch_module.py M1"""
+"""Launch a Foundry module. Usage: python launch_module.py M1
+
+Plan + pre-populate Foundry workspace with current prior-auth-pro state, then start.
+Pre-populating gives Foundry the baseline files so imports resolve and tests can run.
+"""
 import asyncio
 import json
+import shutil
 import sys
 from pathlib import Path
 
@@ -787,20 +842,30 @@ MODULE_BRIEF_PATHS = {
     "M6": "D:/SHADOW/prior-auth-pro/docs/module-briefs/M6-polish.md",
 }
 
-STATE_FILE = Path("D:/SHADOW/prior-auth-pro/.foundry-state.json")
+REPO = Path("D:/SHADOW/prior-auth-pro")
+STATE_FILE = REPO / ".foundry-state.json"
+
+PREPOPULATE_IGNORES = shutil.ignore_patterns(
+    ".git", "node_modules", ".venv", "__pycache__", "*.pyc",
+    ".pytest_cache", ".foundry-state.json",
+)
 
 
 async def main(module_id: str):
     brief = Path(MODULE_BRIEF_PATHS[module_id]).read_text(encoding="utf-8")
     orch = BuildOrchestrator()
+    # Note: `model` config here is the PLANNING model (CTO decomposition).
+    # Per-sprint reasoning model is chosen by ForgePipeline defaults + fallback chain.
     project = await orch.plan(
         request=brief,
-        config={
-            "workspace_override": "D:/SHADOW/prior-auth-pro",
-            "build_model": "gemini/gemini-3.1-pro",
-            "project_name": f"prior-auth-pro-module-{module_id.lower()[1:]}",
-        },
+        config={"model": "gemini-2.5-flash"},
     )
+
+    # Pre-populate workspace with current prior-auth-pro state
+    ppath = Path(project.project_path)
+    shutil.copytree(REPO, ppath, dirs_exist_ok=True, ignore=PREPOPULATE_IGNORES)
+    print(f"pre-populated {ppath} from {REPO}")
+
     await orch.start(project.id)
 
     state = json.loads(STATE_FILE.read_text())
@@ -810,7 +875,7 @@ async def main(module_id: str):
     state["last_session_ended_at"] = None
     STATE_FILE.write_text(json.dumps(state, indent=2))
 
-    print(f"launched {module_id} as project_id={project.id}")
+    print(f"launched {module_id} as project_id={project.id} at {ppath}")
 
 
 if __name__ == "__main__":
@@ -819,7 +884,7 @@ if __name__ == "__main__":
 
 Run: `cd D:/SHADOW/S-CORP && python scripts/launch_module.py M1` (replace `M1` per cycle)
 
-Expected: `launched M1 as project_id=proj_...`
+Expected: `pre-populated <path> from ...` then `launched M1 as project_id=proj_... at <path>`
 
 **Cycle Task B: Poll status**
 
@@ -854,40 +919,62 @@ While polling:
 - If status unchanged >5 min AND circuit breaker state is OPEN, tell Commander and investigate.
 - If context usage approaches 70%, proceed to session-end handoff even if module not complete.
 
-**Cycle Task C: Verify module output**
+**Cycle Task C: Verify module output (in Foundry's workspace)**
 
-After status reaches `complete`:
+After status reaches `complete`. Note: verification runs against Foundry's workspace (`~/.shadow/workspace/proj_<id>/`), NOT the repo yet — sync happens in Cycle Task D.
 
-**Step 1: Verify files exist**
+**Step 1: Locate workspace**
 
-For M1: check `backend/worker/tasks.py`, `backend/worker/llm_client.py`, `backend/tests/test_auth_requests.py`, `backend/tests/test_worker_tasks.py` exist.
+Run: `python -c "import json; s=json.load(open('D:/SHADOW/prior-auth-pro/.foundry-state.json')); print(s['project_id'])"`
 
-Run: `ls D:/SHADOW/prior-auth-pro/backend/worker/ D:/SHADOW/prior-auth-pro/backend/tests/ | grep -E 'tasks|llm_client|auth_requests|worker_tasks'`
+Then set `WS="C:/Users/Dilip Kumar/.shadow/workspace/$PROJECT_ID"` for subsequent steps.
 
-**Step 2: Grep for `# LLM error:`**
+**Step 2: Verify expected files exist**
 
-Run (Grep tool): pattern `# LLM error:` path `D:/SHADOW/prior-auth-pro/backend`
+For M1: `ls $WS/backend/worker/ $WS/backend/tests/ | grep -E 'tasks|llm_client|auth_requests|worker_tasks'`
 
-Expected: Zero matches. If non-zero, apply Section 4 failure recovery from design doc.
+**Step 3: Grep for `# LLM error:`** in that workspace
 
-**Step 3: Run tests** (backend modules only — M4 onward adds frontend)
+If any found: note path + sprint, apply Section 4 failure recovery (retry_sprint or hand-finish).
+
+**Step 4: Run tests inside the workspace**
+
+Run: `cd $WS/backend && python -m pytest tests/ -x -q`
+
+Expected: All tests pass. If fail: debug (may need hand-finish or re-run module).
+
+**Step 5: Lint**
+
+Run: `cd $WS/backend && ruff check .`
+
+Expected: Clean. If >10 violations, consider re-running module with a revised brief.
+
+**Cycle Task D: Hand-finish any failed files + Sync to repo**
+
+**Step 1: Hand-finish failed files** (if any `# LLM error:` from C.3)
+- Attempt `orch.retry_sprint(sprint_id)` once if brief was clear.
+- Else hand-write the file using Edit/Write based on brief. Write directly into the workspace path.
+- Re-run workspace test suite after hand-finish.
+
+**Step 2: Sync Foundry workspace → prior-auth-pro**
+
+Write once: `D:/SHADOW/S-CORP/scripts/sync_module.py` (created in Task 16a). Then:
+
+Run: `cd D:/SHADOW/S-CORP && python scripts/sync_module.py`
+
+The script reads `.foundry-state.json` for the `project_id`, computes `~/.shadow/workspace/<project_id>/`, and copies everything into `D:/SHADOW/prior-auth-pro/` EXCLUDING:
+- `.git/` (Foundry's internal history stays in its workspace)
+- `BUILD_JOURNAL.md`, `build_project.json` (Foundry metadata)
+- `node_modules`, `.venv`, `__pycache__`, `.pytest_cache` (generated junk)
+- `.foundry-state.json` (prior-auth-pro's own state file — don't clobber with workspace's empty copy)
+
+Expected: Prints list of files added/changed + totals.
+
+**Step 3: Verify repo still sane**
 
 Run: `cd D:/SHADOW/prior-auth-pro/backend && python -m pytest tests/ -x -q`
 
-Expected: All tests pass.
-
-**Step 4: Lint**
-
-Run: `cd D:/SHADOW/prior-auth-pro/backend && ruff check .`
-
-Expected: Clean. If violations exist, decide: if <10, hand-finish (Edit tool). If ≥10, re-run module with revised brief.
-
-**Cycle Task D: Hand-finish any failed files**
-
-For each `# LLM error:` found:
-1. Attempt `orch.retry_sprint(sprint_id)` once if the brief was clear.
-2. If retry fails: hand-write the file. Use Edit/Write based on content from brief.
-3. Re-run test suite after hand-finish.
+Expected: All tests pass in the repo. If some pass in workspace but fail here, something went wrong during sync — investigate before committing.
 
 **Cycle Task E: Commit + tag + push**
 

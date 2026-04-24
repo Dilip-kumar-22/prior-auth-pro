@@ -23,7 +23,7 @@ This design covers how we rerun Foundry in **Enterprise mode** (`BuildOrchestrat
 | 2 | **Decomposition** | 6 granular modules (fine-grained blast radius, aligned with natural approval gates) |
 | 3 | **Model strategy** | Gemini 3.1 Pro primary everywhere; rely on Foundry's fallback chain (3.1 Pro → 2.5 Pro → 3 Flash → 2.5 Flash) and circuit breaker for 503s |
 | 4 | **Session pacing** | Auto-drive multiple modules per session; pause at module boundary when Claude context hits ~70-80% |
-| 5 | **Output location** | Build directly in `D:\SHADOW\prior-auth-pro\` via BuildOrchestrator's `workspace_override` config — real-time GitHub backup, authentic per-module commit history |
+| 5 | **Output location** | Foundry builds in its default `~/.shadow/workspace/proj_<id>/` (pre-populated with current `prior-auth-pro` state so imports/tests resolve). At module boundaries Claude syncs generated files back into `D:/SHADOW/prior-auth-pro/backend/`, commits + tags per module in our own format, pushes. Foundry's internal per-sprint/per-phase git history stays in its workspace as debug audit trail. *[Revised 2026-04-24: the `workspace_override` config referenced in the prior draft doesn't exist in BuildOrchestrator; sync-at-boundary is the pragmatic equivalent.]* |
 
 ---
 
