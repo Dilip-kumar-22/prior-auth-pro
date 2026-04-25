@@ -2,11 +2,37 @@
   "project_id": null,
   "workspace": "D:/SHADOW/prior-auth-pro",
   "modules_completed": [],
-  "current_module": null,
-  "current_module_status": null,
+  "current_module": "M1-llm-worker-tasks",
+  "current_module_status": "hand-writing",
   "last_session_ended_at": null,
   "last_git_tag": null,
+  "failed_attempts": [
+    {
+      "project_id": "proj_1777098587",
+      "module": "M1-llm-worker-tasks",
+      "outcome": "drifted",
+      "sprints_completed": 6,
+      "sprints_total": 26,
+      "files_generated": 204,
+      "lines_generated": 43189,
+      "drift_summary": "Foundry's CTO interpreted the M1 brief as the entire project and re-decomposed into 6 modules covering M1-M6. Within Foundry's M1, the schemas/llm_client/tasks files were generic Celery scaffolding, not the clinical domain layer the brief specified. Chose Celery instead of brief-mandated ARQ; pulled in S3, encryption, PDF gen unrequested. Modified 22 baseline files the brief explicitly marked as fixed. Workspace preserved at ~/.shadow/workspace/proj_1777098587/ for analysis. Cancelled in DB.",
+      "ended_at": "2026-04-25T13:40:00Z"
+    },
+    {
+      "project_id": "proj_1777110170",
+      "module": "M1-llm-worker-tasks",
+      "outcome": "drifted",
+      "sprints_completed": 0,
+      "sprints_total": 6,
+      "files_generated": 0,
+      "lines_generated": 0,
+      "drift_summary": "Constraint-tightened request: short imperative passed as request, full brief copied as MODULE_BRIEF.md in workspace. Foundry's CTO obeyed planning-step constraints — clean 1-module / 3-phase / 6-sprint decomposition with correct file targets. But ForgePipeline's per-sprint code generation step ignored the 'do not modify baseline' rule and was already overwriting api/websocket.py, engines/rules/engine.py, migrations/env.py during sprint 1. Killed at 32:35 elapsed before sprint 1 finished. Workspace preserved at ~/.shadow/workspace/proj_1777110170/. Cancelled in DB.",
+      "ended_at": "2026-04-25T15:50:00Z"
+    }
+  ],
   "notes": [
-    "Initialized 2026-04-24. Session 1 will set project_id after first orch.plan() call."
+    "Initialized 2026-04-24. Session 1 will set project_id after first orch.plan() call.",
+    "2026-04-25: First Foundry attempt drifted hard from brief. Reset and re-launching with constraint-tightened request that bypasses CTO re-decomposition.",
+    "2026-04-25: Second Foundry attempt — CTO planning step obeyed constraints but ForgePipeline per-sprint generate step ignored read-only baseline rule. Killed early. Pivoting to hand-write M1 — brief is small enough (5 files / ~500 LOC) that hand-writing is cheaper than another Foundry round."
   ]
 }

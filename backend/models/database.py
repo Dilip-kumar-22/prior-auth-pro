@@ -46,5 +46,6 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 get_session = get_db_session
+get_db = get_db_session  # alias used by api.routes.auth_requests + tests.conftest
 
-__all__ = ["Base", "engine", "AsyncSessionLocal", "get_db_session", "get_session"]
+__all__ = ["Base", "engine", "AsyncSessionLocal", "get_db_session", "get_session", "get_db"]

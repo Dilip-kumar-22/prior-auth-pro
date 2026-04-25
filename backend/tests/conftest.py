@@ -7,20 +7,45 @@ from typing import Any, AsyncGenerator, Dict, Generator
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import text
+from sqlalchemy import JSON, String, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from api.main import app as fastapi_app
-from models.appeal import Appeal
-from models.auth_request import AuthEvent, AuthRequest
-from models.database import Base, get_db
-from models.payer_policy import PayerPolicy
-from models.workflow import WorkflowStep
-
+# Default to in-memory SQLite for tests so the suite runs without Docker /
+# Postgres locally. Override with TEST_DATABASE_URL=postgresql+asyncpg://...
+# to run the same tests against a real Postgres + pgvector container.
 TEST_DATABASE_URL = os.environ.get(
-    "TEST_DATABASE_URL", 
-    "postgresql+asyncpg://postgres:postgres@localhost:5432/test_prior_auth"
+    "TEST_DATABASE_URL",
+    "sqlite+aiosqlite:///:memory:",
 )
+_USING_SQLITE = TEST_DATABASE_URL.startswith("sqlite")
+
+# When running on SQLite we register compile-impls for the Postgres-only
+# types (UUID, JSONB, Vector) so the test suite can use a zero-dep in-memory
+# SQLite database. Override with TEST_DATABASE_URL=postgresql+asyncpg://...
+# to run the same tests against real Postgres + pgvector.
+if _USING_SQLITE:
+    import pgvector.sqlalchemy
+    from sqlalchemy.dialects.postgresql import JSONB, UUID
+    from sqlalchemy.ext.compiler import compiles
+
+    @compiles(UUID, "sqlite")
+    def _compile_uuid_sqlite(type_, compiler, **kw):  # noqa: ARG001
+        return "VARCHAR(36)"
+
+    @compiles(JSONB, "sqlite")
+    def _compile_jsonb_sqlite(type_, compiler, **kw):  # noqa: ARG001
+        return "JSON"
+
+    @compiles(pgvector.sqlalchemy.Vector, "sqlite")
+    def _compile_vector_sqlite(type_, compiler, **kw):  # noqa: ARG001
+        return "JSON"
+
+from api.main import app as fastapi_app  # noqa: E402
+from models.appeal import Appeal  # noqa: E402
+from models.auth_request import AuthEvent, AuthRequest  # noqa: E402
+from models.database import Base, get_db  # noqa: E402
+from models.payer_policy import PayerPolicy  # noqa: E402
+from models.workflow import WorkflowStep  # noqa: E402
 
 
 @pytest.fixture(scope="session")
@@ -38,24 +63,25 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
 async def test_db_engine() -> AsyncGenerator[Any, None]:
     """
     Create an async SQLAlchemy engine for the test database.
-    Sets up the pgvector extension and creates all tables.
+    Sets up the pgvector extension (Postgres only) and creates all tables.
     """
     engine = create_async_engine(TEST_DATABASE_URL, echo=False)
-    
+
     async with engine.begin() as conn:
-        try:
-            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
-        except Exception as e:
-            pass
-            
+        if not _USING_SQLITE:
+            try:
+                await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+            except Exception:
+                pass
+
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
-        
+
     yield engine
-    
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
-        
+
     await engine.dispose()
 
 
